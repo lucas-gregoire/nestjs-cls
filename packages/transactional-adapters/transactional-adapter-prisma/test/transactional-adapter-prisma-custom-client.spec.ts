@@ -10,13 +10,17 @@ import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 import { ClsModule } from 'nestjs-cls';
 import { TransactionalAdapterPrisma } from '../src';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-process.env.DATA_SOURCE_URL = 'file:../tmp/test-custom.db';
+const dbUser = process.env.DB_USER ?? 'postgres';
+const dbPassword = process.env.DB_PASSWORD ?? 'password';
+const dbHost = process.env.DB_HOST ?? 'localhost';
+const dbName = process.env.DB_NAME ?? 'nestjs-cls';
+process.env.DATA_SOURCE_URL = `postgresql://${dbUser}:${dbPassword}@${dbHost}:5432/${dbName}?schema=custom-client`;
 
 const prisma = new PrismaClient({
-    adapter: new PrismaBetterSqlite3({
-        url: process.env.DATA_SOURCE_URL ?? '',
+    adapter: new PrismaPg({
+        connectionString: process.env.DATA_SOURCE_URL ?? '',
     }),
 });
 const customPrismaClient = prisma.$extends({

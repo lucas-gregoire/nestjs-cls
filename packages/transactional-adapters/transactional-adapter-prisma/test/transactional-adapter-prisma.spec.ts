@@ -9,12 +9,17 @@ import {
 import { Injectable, Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Prisma, PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { execSync } from 'child_process';
 import { ClsModule } from 'nestjs-cls';
 import { TransactionalAdapterPrisma } from '../src';
+import { randomUUID } from 'crypto';
 
-process.env.DATA_SOURCE_URL = 'file:../tmp/test.db';
+const dbUser = process.env.DB_USER ?? 'postgres';
+const dbPassword = process.env.DB_PASSWORD ?? 'password';
+const dbHost = process.env.DB_HOST ?? 'localhost';
+const dbName = process.env.DB_NAME ?? 'nestjs-cls';
+process.env.DATA_SOURCE_URL = `postgresql://${dbUser}:${dbPassword}@${dbHost}:5432/${dbName}?schema=client`;
 
 @Injectable()
 class UserRepository {
@@ -115,8 +120,8 @@ class UserService {
             provide: PrismaClient,
             useFactory: () =>
                 new PrismaClient({
-                    adapter: new PrismaBetterSqlite3({
-                        url: process.env.DATA_SOURCE_URL ?? '',
+                    adapter: new PrismaPg({
+                        connectionString: process.env.DATA_SOURCE_URL ?? '',
                     }),
                 }),
         },
@@ -134,7 +139,7 @@ class PrismaModule {}
                     imports: [PrismaModule],
                     adapter: new TransactionalAdapterPrisma({
                         prismaInjectionToken: PrismaClient,
-                        sqlFlavor: 'sqlite',
+                        sqlFlavor: 'postgresql',
                     }),
                     enableTransactionProxy: true,
                 }),
@@ -172,10 +177,11 @@ describe('Transactional', () => {
         });
 
         it('should work with nested transaction', async () => {
-            await callingService.transactionalHasNested('Anybody');
+            const name = 'Anybody - ' + randomUUID();
+            await callingService.transactionalHasNested(name);
 
             const users = await prisma.user.findMany({
-                where: { name: 'Anybody' },
+                where: { name },
             });
 
             // partial rollback
